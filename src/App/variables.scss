@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700');
+
+// ---- App Variables ---- //
+
+// NEW STUFF //
+$primary-blue: #39adff;
+$primary-blue-highlight: lighten($primary-blue, 34.4%);
+$primary-blue-lowlight: darken($primary-blue, 20%); // Not from Brian
+$primary-blue-light-10: lighten($primary-blue, 11.3%);
+$primary-blue-light-20: lighten($primary-blue, 23.6%);
+
+$primary-green: #5CE0A0;
+$primary-green-light-10: lighten($primary-green, 11.3%);
+$primary-green-light-20: lighten($primary-green, 23%);
+$primary-green-highlight: #8AFFC7;
+
+$secondary-green: #61CBBC;
+
+$primary-red: #FF5D5C;
+$primary-red-light-10: lighten($primary-red, 9.4%);
+$primary-red-light-20: lighten($primary-red, 19.2%);
+$primary-yellow: #FFB449;
+
+$nav-gray: #9B9B9B;
+$global-background: #F8F8F8;
+$card-gray: #F2F2F2;
+
+/*** Colors ***/
+$border-color: #e8e8e8;
+
+$youtube-primary: #D9252A;
+$youtube-secondary: #FFBFC1;
+$twitter-primary: #00aced; // #4591C2 #1DA1F3
+$twitter-secondary: #D1EDFF;
+$facebook-primary: #4267B2; // #4466AF #1778F1
+$facebook-secondary: #D7E4FE;
+$instagram-primary: #7E56C2;
+$instagram-secondary: #F8D8FF;
+$instagram-gradient-purple: #9A3DB2;
+$instagram-gradient-yellow: #FFDE84;
+$instagram-gradient-orange: #ED6347;
+$instagram-gradient-pink: #D23086;
+$instagram-gradient: linear-gradient(30deg, $instagram-gradient-yellow 8%, $instagram-gradient-orange 39%, $instagram-gradient-pink 59%, $instagram-gradient-purple 90%);
+
+$gray-graph: #EBEBEB;
+
+$global-shadow: 0 0 9px 0 rgba(0, 0, 0, 0.1);
+$global-shadow-dark: 0 0 9px 0 rgba(0, 0, 0, 0.15);
+
+/*** Fonts ***/
+$primary-font: 'Open Sans', sans-serif;
+// $social-colors(facebook: , instagram: , twitter: , youtube: , snapchat: );
+
+// Input/Dropdown background: #F2F2F2
+$gray-input-background: #F2F2F2;
+$gray-input-disabled: #F9F9F9;
+// Input/Dropdown helper text: #7C7C7C
+$input-color: #7C7C7C;
+
+$font-color: #4A4A4A;
+$font-color-light: #808080;
+// Sidebar Menu Selected: #E8E8E8
+// Title and data text: #4A4A4A
+// Filter Menu/Influencer Location/Cost: #7C7C7C
+
+:export {
+    primaryFont: $primary-font;
+    inputColor: $input-color;
+    grayInputBackground: $gray-input-background;
+    grayInputDisabled: $gray-input-disabled;
+    borderColor: $border-color;
+
+    primaryBlue: $primary-blue;
+    primaryBlueLowlight: $primary-blue-lowlight;
+    primaryBlueLight10: $primary-blue-light-10;
+    primaryBlueLight20: $primary-blue-light-20;
+    primaryGreen: $primary-green;
+    primaryGreenLight10: $primary-green-light-10;
+    primaryGreenLight20: $primary-green-light-20;
+    secondaryGreen: $secondary-green;
+    primaryRed: $primary-red;
+    primaryRedLight10: $primary-red-light-10;
+    primaryRedLight20: $primary-red-light-20;
+    globalBackground: $global-background;
+
+    globalShadow: $global-shadow;
+    globalShadowDark: $global-shadow-dark;
+
+    fontColor: $font-color;
+
+    youtubePrimary: $youtube-primary;
+    youtubeSecondary: $youtube-secondary;
+    instagramPrimary: $instagram-primary;
+    instagramSecondary: $instagram-secondary;
+    grayGraph: $gray-graph;
+}
