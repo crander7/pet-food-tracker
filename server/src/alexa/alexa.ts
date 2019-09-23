@@ -1,17 +1,14 @@
 import express from 'express';
 import * as Alexa from 'ask-sdk';
+import { addFeeding } from './../models/feedings';
 import { ExpressAdapter } from 'ask-sdk-express-adapter';
 
 const APP_ID = 'amzn1.ask.skill.4b610d48-9479-47ca-b456-a266c4fdbee2';
 const invocationName = "food tracker";
 
 const launchRequestHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle launchRequestHandler');
-        return (handlerInput.requestEnvelope.request.type === 'LaunchRequest');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'LaunchRequest'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for launchRequestHandler');
         const responseBuilder = handlerInput.responseBuilder;
         const say = 'hello' + ' and welcome to ' + invocationName + ' ! Say help to hear some options.';
         const skillTitle = capitalize(invocationName);
@@ -26,62 +23,39 @@ const launchRequestHandler = {
 };
 
 const reportFeedingHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle reportFeedingHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'reportFeedingIntent');
-    },
-    handle(handlerInput) {
-        console.log('HIT HANDLE for reportFeedingHandler');
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'reportFeedingIntent'),
+    handle: async (handlerInput) => {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
-        let say = 'Hello from reportFeedingIntent. ';
+        let say = '';
         let slotStatus = '';
-
+        let success = false;
         let slotValues = getSlotValues(request.intent.slots);
-        // getSlotValues returns .heardAs, .resolved, and .isValidated for each slot, according to request slot status codes ER_SUCCESS_MATCH, ER_SUCCESS_NO_MATCH, or traditional simple request slot without resolutions
-
-        // console.log('***** slotValues: ' +  JSON.stringify(slotValues, null, 2));
-        //   SLOT: pet 
-        if (slotValues.pet.heardAs) {
-            slotStatus += ' slot pet was heard as ' + slotValues.pet.heardAs + '. ';
-        } else {
-            slotStatus += 'slot pet is empty. ';
-        }
+        if (slotValues.pet.heardAs) slotStatus += 'your pet name was heard as ' + slotValues.pet.heardAs + '. ';
+        else slotStatus += 'I didn\'t hear your pet name. ';
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_MATCH') {
-            slotStatus += 'a valid ';
-            if (slotValues.pet.resolved !== slotValues.pet.heardAs) {
-                slotStatus += 'synonym for ' + slotValues.pet.resolved + '. ';
-            } else {
-                slotStatus += 'match. '
-            } // else {
-            //
+            await addFeeding(slotValues.pet.heardAs);
+            say += `okay, a feeding for ${slotValues.pet.heardAs} has been recorded. thank you!`;
+            success = true;
         }
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_NO_MATCH') {
-            slotStatus += 'which did not match any slot value. ';
+            slotStatus += 'which did not match any pet names. ';
             console.log('***** consider adding "' + slotValues.pet.heardAs + '" to the custom slot type used by slot pet! ');
         }
-
         if ((slotValues.pet.ERstatus === 'ER_SUCCESS_NO_MATCH') || (!slotValues.pet.heardAs)) {
             slotStatus += 'A few valid values are, ' + sayArray(getExampleSlotValues('reportFeedingIntent', 'pet'), 'or');
         }
-
-        say += slotStatus;
-
-
+        if (!success) say += slotStatus;
         return responseBuilder
             .speak(say)
             .reprompt('try again, ' + say)
             .getResponse();
-    },
+    }
 };
 
 const getLastFeedingHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle getLastFeedingHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'getLastFeedingIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'getLastFeedingIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for getLastFeedingHandler');
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
         let say = 'Hello from getLastFeedingIntent. ';
@@ -119,12 +93,8 @@ const getLastFeedingHandler = {
 
 // 1. Intent Handlers =============================================
 const fallbackIntentHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle fallbackIntentHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.FallbackIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.FallbackIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for fallbackIntentHandler');
         const responseBuilder = handlerInput.responseBuilder;
         let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
@@ -138,12 +108,8 @@ const fallbackIntentHandler = {
 };
 
 const cancelIntentHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle cancelIntentHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.CancelIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.CancelIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for cancelIntentHandler');
         const responseBuilder = handlerInput.responseBuilder;
         let say = 'Okay, talk to you later! ';
         return responseBuilder
@@ -154,12 +120,8 @@ const cancelIntentHandler = {
 };
 
 const helpIntentHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle helpIntentHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.HelpIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.HelpIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for helpIntentHandler');
         const responseBuilder = handlerInput.responseBuilder;
         let intents = getCustomIntents();
         let sampleIntent = randomElement(intents);
@@ -173,12 +135,8 @@ const helpIntentHandler = {
 };
 
 const stopIntentHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle stopIntentHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.StopIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.StopIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for stopIntentHandler');
         const responseBuilder = handlerInput.responseBuilder;
         let say = 'Okay, talk to you later! ';
         return responseBuilder
@@ -189,12 +147,8 @@ const stopIntentHandler = {
 };
 
 const navigateHomeIntentHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle navigateHomeIntentHandler');
-        return (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.NavigateHomeIntent');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.NavigateHomeIntent'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for navigateHomeIntentHandler');
         const responseBuilder = handlerInput.responseBuilder;
         let say = 'Hello from AMAZON.NavigateHomeIntent. ';
         return responseBuilder
@@ -205,24 +159,16 @@ const navigateHomeIntentHandler = {
 };
 
 const sessionEndedHandler = {
-    canHandle: (handlerInput) => {
-        console.log('HIT can handle sessionEndedHandler');
-        return (handlerInput.requestEnvelope.request.type === 'SessionEndedRequest');
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'SessionEndedRequest'),
     handle(handlerInput) {
-        console.log('HIT HANDLE for sessionEndedHandler');
         console.log(`Session ended with reason: ${handlerInput.requestEnvelope.request.reason}`);
         return handlerInput.responseBuilder.getResponse();
     }
 };
 
 const errorHandler = {
-    canHandle: () => {
-        console.log('HIT can handle errorHandler');
-        return true;
-    },
+    canHandle: () => true,
     handle(handlerInput, error) {
-        console.log('HIT HANDLE for errorHandler');
         console.log(`Error handled: ${error.message}`);
         return handlerInput.responseBuilder
             .speak('Sorry, an error occurred.  Please say again.')
@@ -360,10 +306,11 @@ const skill = Alexa.SkillBuilders
         launchRequestHandler,
         sessionEndedHandler
     )
+    .withSkillId(APP_ID)
     .addErrorHandlers(errorHandler)
     .create();
 
-const adapter = new ExpressAdapter(skill, false, false);
+const adapter = new ExpressAdapter(skill, true, true);
 
 const router = express.Router();
 
