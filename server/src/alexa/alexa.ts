@@ -2,95 +2,27 @@ import express from 'express';
 import * as Alexa from 'ask-sdk';
 import { ExpressAdapter } from 'ask-sdk-express-adapter';
 
+const APP_ID = 'amzn1.ask.skill.4b610d48-9479-47ca-b456-a266c4fdbee2';
 const invocationName = "food tracker";
 
-// 1. Intent Handlers =============================================
-const AMAZON_FallbackIntent_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'AMAZON.FallbackIntent';
-    },
+const launchRequestHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'LaunchRequest'),
     handle(handlerInput) {
         const responseBuilder = handlerInput.responseBuilder;
-        let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-
-        let previousSpeech = getPreviousSpeechOutput(sessionAttributes);
-
-        return responseBuilder
-            .speak('Sorry I didnt catch what you said, ' + stripSpeak(previousSpeech.outputSpeech))
-            .reprompt(stripSpeak(previousSpeech.reprompt))
-            .getResponse();
-    },
-};
-
-const AMAZON_CancelIntent_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'AMAZON.CancelIntent';
-    },
-    handle(handlerInput) {
-        const responseBuilder = handlerInput.responseBuilder;
-        let say = 'Okay, talk to you later! ';
-        return responseBuilder
-            .speak(say)
-            .withShouldEndSession(true)
-            .getResponse();
-    },
-};
-
-const AMAZON_HelpIntent_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'AMAZON.HelpIntent';
-    },
-    handle(handlerInput) {
-        const responseBuilder = handlerInput.responseBuilder;
-        let intents = getCustomIntents();
-        let sampleIntent = randomElement(intents);
-        let say = 'You asked for help. ';
-        say += ' Here something you can ask me, ' + getSampleUtterance(sampleIntent);
+        const say = 'hello' + ' and welcome to ' + invocationName + ' ! Say help to hear some options.';
+        const skillTitle = capitalize(invocationName);
         return responseBuilder
             .speak(say)
             .reprompt('try again, ' + say)
+            .withStandardCard('Welcome!',
+                'Hello!\nThis is a card for your skill, ' + skillTitle,
+                welcomeCardImg.smallImageUrl, welcomeCardImg.largeImageUrl)
             .getResponse();
-    },
-};
-
-const AMAZON_StopIntent_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'AMAZON.StopIntent';
-    },
-    handle(handlerInput) {
-        const responseBuilder = handlerInput.responseBuilder;
-        let say = 'Okay, talk to you later! ';
-        return responseBuilder
-            .speak(say)
-            .withShouldEndSession(true)
-            .getResponse();
-    },
-};
-
-const AMAZON_NavigateHomeIntent_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'AMAZON.NavigateHomeIntent';
-    },
-    handle(handlerInput) {
-        const responseBuilder = handlerInput.responseBuilder;
-        let say = 'Hello from AMAZON.NavigateHomeIntent. ';
-        return responseBuilder
-            .speak(say)
-            .reprompt('try again, ' + say)
-            .getResponse();
-    },
+    }
 };
 
 const reportFeedingHandler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'reportFeedingIntent';
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'reportFeedingIntent'),
     handle(handlerInput) {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
@@ -136,10 +68,7 @@ const reportFeedingHandler = {
 };
 
 const getLastFeedingHandler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'IntentRequest' && request.intent.name === 'getLastFeedingIntent';
-    },
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'getLastFeedingIntent'),
     handle(handlerInput) {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
@@ -176,42 +105,84 @@ const getLastFeedingHandler = {
     },
 };
 
-const LaunchRequest_Handler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'LaunchRequest';
-    },
+// 1. Intent Handlers =============================================
+const fallbackIntentHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.FallbackIntent'),
     handle(handlerInput) {
         const responseBuilder = handlerInput.responseBuilder;
-        let say = 'hello' + ' and welcome to ' + invocationName + ' ! Say help to hear some options.';
-        let skillTitle = capitalize(invocationName);
+        let sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+
+        let previousSpeech = getPreviousSpeechOutput(sessionAttributes);
+
         return responseBuilder
-            .speak(say)
-            .reprompt('try again, ' + say)
-            .withStandardCard('Welcome!',
-                'Hello!\nThis is a card for your skill, ' + skillTitle,
-                welcomeCardImg.smallImageUrl, welcomeCardImg.largeImageUrl)
+            .speak('Sorry I didnt catch what you said, ' + stripSpeak(previousSpeech.outputSpeech))
+            .reprompt(stripSpeak(previousSpeech.reprompt))
             .getResponse();
     },
 };
 
-const SessionEndedHandler = {
-    canHandle(handlerInput) {
-        const request = handlerInput.requestEnvelope.request;
-        return request.type === 'SessionEndedRequest';
+const cancelIntentHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.CancelIntent'),
+    handle(handlerInput) {
+        const responseBuilder = handlerInput.responseBuilder;
+        let say = 'Okay, talk to you later! ';
+        return responseBuilder
+            .speak(say)
+            .withShouldEndSession(true)
+            .getResponse();
     },
+};
+
+const helpIntentHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.HelpIntent'),
+    handle(handlerInput) {
+        const responseBuilder = handlerInput.responseBuilder;
+        let intents = getCustomIntents();
+        let sampleIntent = randomElement(intents);
+        let say = 'You asked for help. ';
+        say += ' Here something you can ask me, ' + getSampleUtterance(sampleIntent);
+        return responseBuilder
+            .speak(say)
+            .reprompt('try again, ' + say)
+            .getResponse();
+    },
+};
+
+const stopIntentHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.StopIntent'),
+    handle(handlerInput) {
+        const responseBuilder = handlerInput.responseBuilder;
+        let say = 'Okay, talk to you later! ';
+        return responseBuilder
+            .speak(say)
+            .withShouldEndSession(true)
+            .getResponse();
+    },
+};
+
+const navigateHomeIntentHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.NavigateHomeIntent'),
+    handle(handlerInput) {
+        const responseBuilder = handlerInput.responseBuilder;
+        let say = 'Hello from AMAZON.NavigateHomeIntent. ';
+        return responseBuilder
+            .speak(say)
+            .reprompt('try again, ' + say)
+            .getResponse();
+    },
+};
+
+const sessionEndedHandler = {
+    canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'SessionEndedRequest'),
     handle(handlerInput) {
         console.log(`Session ended with reason: ${handlerInput.requestEnvelope.request.reason}`);
         return handlerInput.responseBuilder.getResponse();
     }
 };
 
-const ErrorHandler = {
-    canHandle() {
-        return true;
-    },
+const errorHandler = {
+    canHandle: () => true,
     handle(handlerInput, error) {
-        const request = handlerInput.requestEnvelope.request;
         console.log(`Error handled: ${error.message}`);
         return handlerInput.responseBuilder
             .speak('Sorry, an error occurred.  Please say again.')
@@ -220,29 +191,11 @@ const ErrorHandler = {
     }
 };
 
-
-// 2. Constants ===========================================================================
-
-// Here you can define static data, to be used elsewhere in your code.  For example: 
-//    const myString = "Hello World";
-//    const myArray  = [ "orange", "grape", "strawberry" ];
-//    const myObject = { "city": "Boston",  "state":"Massachusetts" };
-
-const APP_ID = undefined;  // TODO replace with your Skill ID (OPTIONAL).
-
-// 3.  Helper Functions ===================================================================
-
 const capitalize = (myString: string): string => myString.replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase());
+const randomElement = (myArray) => (myArray[Math.floor(Math.random() * myArray.length)]);
+const stripSpeak = (str: string) => (str.replace('<speak>', '').replace('</speak>', ''));
 
-function randomElement(myArray) {
-    return (myArray[Math.floor(Math.random() * myArray.length)]);
-}
-
-function stripSpeak(str) {
-    return (str.replace('<speak>', '').replace('</speak>', ''));
-}
-
-interface Slots {
+interface slots {
     pet: {
         heardAs: string,
         resolved: string,
@@ -250,8 +203,8 @@ interface Slots {
     }
 }
 
-function getSlotValues(filledSlots: object): Slots {
-    const slotValues: Slots = { pet: { heardAs: '', resolved: '', ERstatus: '' } };
+function getSlotValues(filledSlots: object): slots {
+    const slotValues: slots = { pet: { heardAs: '', resolved: '', ERstatus: '' } };
     Object.keys(filledSlots).forEach((item) => {
         const name = filledSlots[item].name;
         if (filledSlots[item] &&
@@ -288,7 +241,7 @@ function getSlotValues(filledSlots: object): Slots {
     return slotValues;
 }
 
-function getExampleSlotValues(intentName, slotName) {
+function getExampleSlotValues(intentName: string, slotName: string) {
     let examples = [];
     let slotType = '';
     let slotValuesFull = [];
@@ -319,7 +272,7 @@ function getExampleSlotValues(intentName, slotName) {
 
 function sayArray(myData, penultimateWord = 'and') {
     let result = '';
-    myData.forEach(function (element, index, arr) {
+    myData.forEach(function (element, index) {
         if (index === 0) {
             result = element;
         } else if (index === myData.length - 1) {
@@ -334,18 +287,12 @@ function sayArray(myData, penultimateWord = 'and') {
 const welcomeCardImg = {
     smallImageUrl: "https://s3.amazonaws.com/skill-images-789/cards/card_plane720_480.png",
     largeImageUrl: "https://s3.amazonaws.com/skill-images-789/cards/card_plane1200_800.png"
-
-
 };
 
 function getCustomIntents() {
     const modelIntents = model.interactionModel.languageModel.intents;
-
     let customIntents = [];
-
-
     for (let i = 0; i < modelIntents.length; i++) {
-
         if (modelIntents[i].name.substring(0, 7) != "AMAZON." && modelIntents[i].name !== "LaunchRequest") {
             customIntents.push(modelIntents[i]);
         }
@@ -353,16 +300,7 @@ function getCustomIntents() {
     return customIntents;
 }
 
-function getSampleUtterance(intent) {
-
-    return randomElement(intent.samples);
-
-}
-
-function getPreviousIntent(attrs) {
-    if (attrs.history && attrs.history.length > 1) return attrs.history[attrs.history.length - 2].IntentRequest;
-    return false;
-}
+const getSampleUtterance = (intent) => randomElement(intent.samples);
 
 function getPreviousSpeechOutput(attrs) {
     if (attrs.lastSpeechOutput && attrs.history.length > 1) return attrs.lastSpeechOutput;
@@ -372,27 +310,26 @@ function getPreviousSpeechOutput(attrs) {
 const skill = Alexa.SkillBuilders
     .custom()
     .addRequestHandlers(
-        AMAZON_FallbackIntent_Handler,
-        AMAZON_CancelIntent_Handler,
-        AMAZON_HelpIntent_Handler,
-        AMAZON_StopIntent_Handler,
-        AMAZON_NavigateHomeIntent_Handler,
+        fallbackIntentHandler,
+        cancelIntentHandler,
+        helpIntentHandler,
+        stopIntentHandler,
+        navigateHomeIntentHandler,
         reportFeedingHandler,
         getLastFeedingHandler,
-        LaunchRequest_Handler,
-        SessionEndedHandler
+        launchRequestHandler,
+        sessionEndedHandler
     )
-    .addErrorHandlers(ErrorHandler)
+    .addErrorHandlers(errorHandler)
     .create();
 
-const adapter = new ExpressAdapter(skill, true, true);
+const adapter = new ExpressAdapter(skill, false, false);
 
 const router = express.Router();
 
 router.post('/', adapter.getRequestHandlers());
 
 export default router;
-
 
 const model = {
     "interactionModel": {

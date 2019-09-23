@@ -11,6 +11,8 @@ const konfig = konphyg(`${__dirname}/../../config`);
 const config = konfig('tracker');
 const app = express();
 
+app.use('/alexa', alexa);
+
 app.use(express.static(path.resolve(__dirname, '../../build')));
 
 // ------------ Middleware ------------ //
@@ -20,7 +22,6 @@ app.use(json({ limit: '50mb' }));
 app.use(urlencoded({ limit: '50mb', extended: false }));
 
 app.use('/api', apiRoutes);
-app.use('/alexa', alexa);
 
 app.get('*', (req: express.Request, res: express.Response, next: express.NextFunction): void => {
     res.sendFile(path.resolve(__dirname, '../../build/index.html'));
