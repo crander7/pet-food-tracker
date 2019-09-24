@@ -1,8 +1,7 @@
 import pg from 'pg';
 import konphyg from 'konphyg';
 
-const konfig = konphyg(`${__dirname}/../../../config`);
-const config = konfig('tracker');
+const config = konphyg(`${__dirname}/../../../config`)('tracker');
 
 const dbConfig = {
     user: config.postgreSQL.username,
@@ -23,7 +22,7 @@ process.on('exit', () => {
 export const addFeeding = async (pet: string) => {
     try {
         const query = {
-            text: `INSERT INTO feeding (pet) VALUES ($1)`,
+            text: 'INSERT INTO feeding (pet) VALUES ($1)',
             values: [pet]
         };
         await pool.query(query);
@@ -33,12 +32,21 @@ export const addFeeding = async (pet: string) => {
     }
 };
 
+export const getLatestFeeding = async (pet: string) => {
+    try {
+        const query = {
+            text: 'SELECT created_at FROM feeding WHERE pet = $1 ORDER BY created_at DESC LIMIT 1;',
+            values: [pet]
+        };
+        const { rows } = await pool.query(query);
+        return rows[0].created_at;
+    } catch (e) {
+        const error = `db error in getLatestFeeding ${e}`;
+        throw error;
+    }
+};
 
-// const addFeeding = async (pet: string) => {
-//     try {
-//         await pool.query("SELECT * FROM post WHERE start_date >= now() - INTERVAL '1 day';");
-//     } catch (e) {
-//         const error = `db error in getUpcomingPosts ${e}`;
-//         throw error;
-//     }
-// };
+export default {
+    addFeeding,
+    getLatestFeeding
+};

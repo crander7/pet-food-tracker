@@ -1,7 +1,8 @@
 import express from 'express';
-import * as Alexa from 'ask-sdk';
-import { addFeeding } from './../models/feedings';
+import { SkillBuilders, DefaultApiClient } from 'ask-sdk-core';
 import { ExpressAdapter } from 'ask-sdk-express-adapter';
+import { alexaModel as model, feedingModel } from './../models';
+import { generalUtils as utils, dateParser } from './../utils';
 
 const APP_ID = 'amzn1.ask.skill.4b610d48-9479-47ca-b456-a266c4fdbee2';
 const invocationName = "food tracker";
@@ -10,8 +11,8 @@ const launchRequestHandler = {
     canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'LaunchRequest'),
     handle(handlerInput) {
         const responseBuilder = handlerInput.responseBuilder;
-        const say = 'hello' + ' and welcome to ' + invocationName + ' ! Say help to hear some options.';
-        const skillTitle = capitalize(invocationName);
+        const say = `hello and welcome to ${invocationName}! Say help to hear some options.`;
+        const skillTitle = utils.capitalize(invocationName);
         return responseBuilder
             .speak(say)
             .reprompt('try again, ' + say)
@@ -34,9 +35,13 @@ const reportFeedingHandler = {
         if (slotValues.pet.heardAs) slotStatus += 'your pet name was heard as ' + slotValues.pet.heardAs + '. ';
         else slotStatus += 'I didn\'t hear your pet name. ';
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_MATCH') {
-            await addFeeding(slotValues.pet.heardAs);
-            say += `okay, a feeding for ${slotValues.pet.heardAs} has been recorded. thank you!`;
-            success = true;
+            try {
+                await feedingModel.addFeeding(slotValues.pet.heardAs.toLowerCase());
+                say += `okay, ${slotValues.pet.heardAs}'s feeding has been recorded. thank you!`;
+                success = true;
+            } catch (e) {
+                say += 'oops, there\'s been a problem, tell uncle craig please. '
+            }
         }
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_NO_MATCH') {
             slotStatus += 'which did not match any pet names. ';
@@ -48,33 +53,47 @@ const reportFeedingHandler = {
         if (!success) say += slotStatus;
         return responseBuilder
             .speak(say)
-            .reprompt('try again, ' + say)
+            .reprompt(`try again, ${say}`)
+            .withShouldEndSession(true)
             .getResponse();
     }
 };
 
 const getLastFeedingHandler = {
     canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'getLastFeedingIntent'),
-    handle(handlerInput) {
+    handle: async (handlerInput) => {
         const request = handlerInput.requestEnvelope.request;
         const responseBuilder = handlerInput.responseBuilder;
-        let say = 'Hello from getLastFeedingIntent. ';
-        let slotStatus = '';
-        let slotValues = getSlotValues(request.intent.slots);
-        // getSlotValues returns .heardAs, .resolved, and .isValidated for each slot, according to request slot status codes ER_SUCCESS_MATCH, ER_SUCCESS_NO_MATCH, or traditional simple request slot without resolutions
+        const serviceClientFactory = handlerInput.serviceClientFactory;
+        const deviceId = handlerInput.requestEnvelope.context.System.device.deviceId;
 
-        // console.log('***** slotValues: ' +  JSON.stringify(slotValues, null, 2));
-        //   SLOT: pet 
-        if (slotValues.pet.heardAs) {
-            slotStatus += ' slot pet was heard as ' + slotValues.pet.heardAs + '. ';
-        } else {
-            slotStatus += 'slot pet is empty. ';
+        let say = '';
+        let slotStatus = '';
+        let success = false;
+        let slotValues = getSlotValues(request.intent.slots);
+        let userTimeZone;
+
+        try {
+            const upsServiceClient = serviceClientFactory.getUpsServiceClient();
+            userTimeZone = await upsServiceClient.getSystemTimeZone(deviceId);    
+        } catch (error) {
+            if (error.name !== 'ServiceError') {
+                return handlerInput.responseBuilder.speak('There was a problem connecting to the service.').getResponse();
+            }
+            console.log('error', error.message);
         }
+        console.log('userTimeZone', userTimeZone);
+
+        if (slotValues.pet.heardAs) slotStatus += 'your pet name was heard as ' + slotValues.pet.heardAs + '. ';
+        else slotStatus += 'i didn\'t hear your pet name. ';
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_MATCH') {
-            slotStatus += 'a valid ';
-            if (slotValues.pet.resolved !== slotValues.pet.heardAs) {
-                slotStatus += 'synonym for ' + slotValues.pet.resolved + '. ';
-            } else slotStatus += 'match. '
+            try {
+                const time = await feedingModel.getLatestFeeding(slotValues.pet.heardAs);
+                say += `${slotValues.pet.heardAs} was last fed ${dateParser(time, userTimeZone)}`;
+                success = true;
+            } catch (e) {
+                say += 'oops, there\'s been a problem, tell uncle craig please. ';
+            }
         }
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_NO_MATCH') {
             slotStatus += 'which did not match any slot value. ';
@@ -83,15 +102,15 @@ const getLastFeedingHandler = {
         if ((slotValues.pet.ERstatus === 'ER_SUCCESS_NO_MATCH') || (!slotValues.pet.heardAs)) {
             slotStatus += 'A few valid values are, ' + sayArray(getExampleSlotValues('getLastFeedingIntent', 'pet'), 'or');
         }
-        say += slotStatus;
+        if (!success) say += slotStatus;
         return responseBuilder
             .speak(say)
             .reprompt('try again, ' + say)
+            .withShouldEndSession(true)
             .getResponse();
-    },
+    }
 };
 
-// 1. Intent Handlers =============================================
 const fallbackIntentHandler = {
     canHandle: (handlerInput) => (handlerInput.requestEnvelope.request.type === 'IntentRequest' && handlerInput.requestEnvelope.request.intent.name === 'AMAZON.FallbackIntent'),
     handle(handlerInput) {
@@ -101,8 +120,8 @@ const fallbackIntentHandler = {
         let previousSpeech = getPreviousSpeechOutput(sessionAttributes);
 
         return responseBuilder
-            .speak('Sorry I didnt catch what you said, ' + stripSpeak(previousSpeech.outputSpeech))
-            .reprompt(stripSpeak(previousSpeech.reprompt))
+            .speak('Sorry I didnt catch what you said, ' + utils.stripSpeak(previousSpeech.outputSpeech))
+            .reprompt(utils.stripSpeak(previousSpeech.reprompt))
             .getResponse();
     },
 };
@@ -124,9 +143,9 @@ const helpIntentHandler = {
     handle(handlerInput) {
         const responseBuilder = handlerInput.responseBuilder;
         let intents = getCustomIntents();
-        let sampleIntent = randomElement(intents);
+        let sampleIntent = utils.randomElement(intents);
         let say = 'You asked for help. ';
-        say += ' Here something you can ask me, ' + getSampleUtterance(sampleIntent);
+        say += ' Here something you can ask me, ' + utils.getSampleUtterance(sampleIntent);
         return responseBuilder
             .speak(say)
             .reprompt('try again, ' + say)
@@ -176,10 +195,6 @@ const errorHandler = {
             .getResponse();
     }
 };
-
-const capitalize = (myString: string): string => myString.replace(/(?:^|\s)\S/g, (a: string) => a.toUpperCase());
-const randomElement = (myArray) => (myArray[Math.floor(Math.random() * myArray.length)]);
-const stripSpeak = (str: string) => (str.replace('<speak>', '').replace('</speak>', ''));
 
 interface slots {
     pet: {
@@ -286,14 +301,12 @@ function getCustomIntents() {
     return customIntents;
 }
 
-const getSampleUtterance = (intent) => randomElement(intent.samples);
-
 function getPreviousSpeechOutput(attrs) {
     if (attrs.lastSpeechOutput && attrs.history.length > 1) return attrs.lastSpeechOutput;
     return false;
 }
 
-const skill = Alexa.SkillBuilders
+const skill = SkillBuilders
     .custom()
     .addRequestHandlers(
         fallbackIntentHandler,
@@ -308,6 +321,7 @@ const skill = Alexa.SkillBuilders
     )
     .withSkillId(APP_ID)
     .addErrorHandlers(errorHandler)
+    .withApiClient(new DefaultApiClient())
     .create();
 
 const adapter = new ExpressAdapter(skill, true, true);
@@ -317,92 +331,3 @@ const router = express.Router();
 router.post('/', adapter.getRequestHandlers());
 
 export default router;
-
-const model = {
-    "interactionModel": {
-        "languageModel": {
-            "invocationName": "food tracker",
-            "intents": [
-                {
-                    "name": "AMAZON.FallbackIntent",
-                    "samples": []
-                },
-                {
-                    "name": "AMAZON.CancelIntent",
-                    "samples": []
-                },
-                {
-                    "name": "AMAZON.HelpIntent",
-                    "samples": []
-                },
-                {
-                    "name": "AMAZON.StopIntent",
-                    "samples": []
-                },
-                {
-                    "name": "AMAZON.NavigateHomeIntent",
-                    "samples": []
-                },
-                {
-                    "name": "reportFeedingIntent",
-                    "slots": [
-                        {
-                            "name": "pet",
-                            "type": "pet"
-                        }
-                    ],
-                    "samples": [
-                        "that {pet} has food",
-                        "that {pet} has been fed",
-                        "that i fed the {pet}",
-                        "that i fed {pet}"
-                    ]
-                },
-                {
-                    "name": "getLastFeedingIntent",
-                    "slots": [
-                        {
-                            "name": "pet",
-                            "type": "pet"
-                        }
-                    ],
-                    "samples": [
-                        "was {pet} fed today",
-                        "when was the last time {pet} was fed",
-                        "if {pet} was fed today"
-                    ]
-                },
-                {
-                    "name": "LaunchRequest"
-                }
-            ],
-            "types": [
-                {
-                    "name": "pet",
-                    "values": [
-                        {
-                            "name": {
-                                "value": "minnie",
-                                "synonyms": [
-                                    "the cat",
-                                    "cat"
-                                ]
-                            }
-                        },
-                        {
-                            "name": {
-                                "value": "charlie",
-                                "synonyms": [
-                                    "dog",
-                                    "the dog",
-                                    "cha",
-                                    "char"
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-};

@@ -7,10 +7,10 @@ import path from 'path';
 import alexa from './alexa/alexa';
 import apiRoutes from './routes/apiRoutes';
 
-const konfig = konphyg(`${__dirname}/../../config`);
-const config = konfig('tracker');
+const config = konphyg(`${__dirname}/../../config`)('tracker');
 const app = express();
 
+// Must be before body-parser
 app.use('/alexa', alexa);
 
 app.use(express.static(path.resolve(__dirname, '../../build')));
