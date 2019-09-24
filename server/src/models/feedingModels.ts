@@ -42,6 +42,7 @@ export const getLatestFeeding = async (pet: string) => {
         return rows[0].created_at;
     } catch (e) {
         const error = `db error in getLatestFeeding ${e}`;
+        console.log(error);
         throw error;
     }
 };

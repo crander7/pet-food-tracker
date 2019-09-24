@@ -82,13 +82,12 @@ const getLastFeedingHandler = {
             }
             console.log('error', error.message);
         }
-        console.log('userTimeZone', userTimeZone);
 
         if (slotValues.pet.heardAs) slotStatus += 'your pet name was heard as ' + slotValues.pet.heardAs + '. ';
         else slotStatus += 'i didn\'t hear your pet name. ';
         if (slotValues.pet.ERstatus === 'ER_SUCCESS_MATCH') {
             try {
-                const time = await feedingModel.getLatestFeeding(slotValues.pet.heardAs);
+                const time = await feedingModel.getLatestFeeding(slotValues.pet.heardAs.toLowerCase());
                 say += `${slotValues.pet.heardAs} was last fed ${dateParser(time, userTimeZone)}`;
                 success = true;
             } catch (e) {
